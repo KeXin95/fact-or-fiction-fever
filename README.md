@@ -37,6 +37,27 @@ pip install -r requirements.txt
    - Place FEVER training data as `train.jsonl` in the parent directory
    - Place Wikipedia pages as `wiki-pages/wiki-*.jsonl` in the parent directory
 
+## Data
+
+All pre-processed data files are available for download from Google Drive:
+
+**[Download all data files from Google Drive](https://drive.google.com/drive/folders/1koNF2Sr-D-ltDxUUn_EAY1pt2M0tAe3t?usp=sharing)**
+
+The folder contains:
+- `claim_retrieved_docs_bm25.json` - Retrieved documents for each claim using BM25
+- `pyserini/` - Pre-built Pyserini index folder
+- `llm_classification_results_merged.csv` - Merged classification results (CSV format)
+- `llm_classification_results_merged.json` - Merged classification results (JSON format)
+- `results_part_0.csv`, `results_part_0.json` - Partial results from process 0
+- `results_part_1.csv`, `results_part_1.json` - Partial results from process 1
+- `results_part_2.csv`, `results_part_2.json` - Partial results from process 2
+- `results_part_3.csv`, `results_part_3.json` - Partial results from process 3
+- `results_part_4.csv`, `results_part_4.json` - Partial results from process 4
+- `results_part_5.csv`, `results_part_5.json` - Partial results from process 5
+- `results_part_6.csv`, `results_part_6.json` - Partial results from process 6
+- `results_part_7.csv`, `results_part_7.json` - Partial results from process 7
+
+
 ## Usage
 
 ### Step 1: Build Index and Retrieve Documents
