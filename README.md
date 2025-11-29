@@ -69,7 +69,8 @@ pip install -r requirements.txt
          ```
 6. Generate closed book result:
    - ```bash
-     cd scripts && python close_book_predict_result.py --ollama_bin='./bin/ollama' --log_dir='./ollama_servers/close_book' --dev_file_path='./data/fever-data/dev.jsonl' --output_file='../results/dev_res_llama3_newprompt/fever_closedbook_llama3.1_8b_instruct_dev_subset.csv' --models_path='./models/'```
+     cd scripts && python close_book_predict_result.py --ollama_bin='./bin/ollama' --log_dir='./ollama_servers/close_book' --dev_file_path='./data/fever-data/dev.jsonl' --output_file='../results/dev_res_llama3_newprompt/fever_closedbook_llama3.1_8b_instruct_dev_subset.csv' --models_path='./models/'
+     ```
 
 ## Data
 
