@@ -4,11 +4,12 @@
 BASE_PORT=11434
 NUM_SERVERS=8
 OLLAMA_BIN="./ollama"
-MODEL="qwen2:7b"
+MODEL='llama3.1'
+# qwen2.5:7b-instruct
 OLLAMA_CONTEXT_LENGTH=16384
 OLLAMA_MODELS="./models/"
 
-# CUDA device allocation
+# CUDA device allocation (adjust based on your available GPUs)
 # Format: "device1,device2" for each server
 # NOTE: If you only have devices 2,3 available, you can use the same for all servers
 #       or distribute them. Ollama will handle the load balancing.
@@ -28,7 +29,7 @@ CUDA_DEVICES=(
 )
 
 # Log directory
-LOG_DIR="./NLP/ollama_servers"
+LOG_DIR="./ollama_servers"
 mkdir -p "$LOG_DIR"
 
 # Check CUDA devices if nvidia-smi is available

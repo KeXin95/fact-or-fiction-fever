@@ -1,17 +1,28 @@
 #!/bin/bash
 
 # Configuration
-TOTAL_ENTRIES=145449
+# =============
+# Change these variables to update all file paths at once
+RETRIEVAL_METHOD="bm25_top5"  # e.g., "bm25_top5", "dense_miniLM_top5"
+MODEL_PROMPT="llama3_newprompt"  # e.g., "llama3_newprompt"
+MODEL='llama3.1'
+# "qwen2.5:7b-instruct"
+INPUT_FILE="dev_claim_retrieved_docs_${RETRIEVAL_METHOD}.json"
+TOTAL_ENTRIES=19998
 NUM_PROCESSES=8
-INPUT_FILE="./claim_retrieved_docs_bm25.json"
-MODEL="qwen2:7b"
 SCRIPT_PATH="./pred_results.py"
 BASE_PORT=11434  # Base port for Ollama (matches start_ollama_servers.sh)
 USE_DIFFERENT_PORTS=true  # Use different ports for each process (one per Ollama server)
+# Merge all CSV files
+MERGED_CSV="dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.csv"
+MERGED_JSON="dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.json"
+# =============
 
 # Calculate chunk size per process
 CHUNK_SIZE=$((TOTAL_ENTRIES / NUM_PROCESSES))
 REMAINDER=$((TOTAL_ENTRIES % NUM_PROCESSES))
+
+
 
 echo "=========================================="
 echo "Parallel Processing Setup"
@@ -28,7 +39,7 @@ echo "=========================================="
 echo ""
 
 # Create output directory for individual results
-OUTPUT_DIR="parallel_results"
+OUTPUT_DIR="parallel_results_${RETRIEVAL_METHOD}_${MODEL_PROMPT}"
 mkdir -p "$OUTPUT_DIR"
 
 # PID file to track processes (useful if script is interrupted)
@@ -134,9 +145,7 @@ if [ $FAILED -eq 0 ]; then
     echo ""
     echo "Merging results..."
     
-    # Merge all CSV files
-    MERGED_CSV="llm_classification_results_merged.csv"
-    MERGED_JSON="llm_classification_results_merged.json"
+    
     
     # Check if Python has pandas (for merging)
     python3 -c "import pandas as pd" 2>/dev/null

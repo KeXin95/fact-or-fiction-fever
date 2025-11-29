@@ -7,31 +7,53 @@ import time
 from typing import Literal
 from tqdm import tqdm
 
-MODEL = 'qwen2:7b'
-FILE = './claim_retrieved_docs_bm25.json'
+MODEL = 'llama3.1'#'qwen2.5:7b-instruct'
+FILE = ''
 
-def check_claim_with_llm(claim: str, retrieved_documents: list, model: str = "qwen2:7b", request_num: int = 0, log_frequency: int = 50, port: int = 11434, sleep_after: float = 0.1) -> Literal["SUPPORTS", "REFUTES", "NOT ENOUGH INFO"]:
-    """
-    Check if the claim is supported, refuted, or has not enough info based on retrieved documents.
+def format_llama3_promt(doc_texts, claim):
+    # Format the context using XML tags for Llama 3.1
+    formatted_docs = []
+    for i, doc in enumerate(doc_texts):
+        # We add an index so the model can cite specific documents if needed
+        formatted_docs.append(f'<doc index="{i+1}">\n{doc}\n</doc>')
+
+    # Join them clearly
+    context_block = "\n".join(formatted_docs)
     
-    Args:
-        claim: The claim to verify
-        retrieved_documents: List of retrieved documents (strings or dicts with text)
-        model: Ollama model name to use
-    
-    Returns:
-        One of: "SUPPORTS", "REFUTES", "NOT ENOUGH INFO"
-    """
-    # Extract text from documents if they're dicts
-    doc_texts = []
-    for doc in retrieved_documents:
-        if isinstance(doc, dict):
-            # Try common keys for document text
-            text = doc.get('text', doc.get('content', doc.get('body', str(doc))))
-        else:
-            text = str(doc)
-        doc_texts.append(text)
-    
+    system_prompt = """You are a precise fact-checking system.
+You will be provided with a CLAIM and a set of retrieved DOCUMENTS.
+
+Your goal is to output a JSON object with two keys:
+1. "reasoning": A brief explanation of which document supports or refutes the claim.
+2. "label": One of "SUPPORTS", "REFUTES", or "NOT ENOUGH INFO".
+
+RULES:
+- "SUPPORTS": The claim is fully supported by the information in the documents.
+- "REFUTES": The claim is explicitly contradicted by the documents.
+- "NOT ENOUGH INFO": The documents do not contain the answer, or the information is unrelated.
+- Do not use outside knowledge. Rely ONLY on the provided <doc> tags.
+"""
+
+    user_prompt = f"""
+<documents>
+{context_block}
+</documents>
+
+<claim>
+{claim}
+</claim>
+
+Your response (ONLY respond with one word/phrase: SUPPORTS, REFUTES, or NOT ENOUGH INFO):
+"""
+
+    # If using a chat template (Recommended):
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    return messages
+
+def format_general_prompt(doc_texts, claim):
     # Combine documents into context
     context = "\n\n".join([f"Document {i+1}:\n{doc}" for i, doc in enumerate(doc_texts)])
     
@@ -56,27 +78,90 @@ Retrieved Documents:
 Based on the above documents, determine if they SUPPORT, REFUTE, or provide NOT ENOUGH INFO for the claim.
 
 Your response (ONLY respond with one word/phrase: SUPPORTS, REFUTES, or NOT ENOUGH INFO):"""
+    return prompt
+
+def check_claim_with_llm(claim: str, retrieved_documents: list, model: str = "qwen2:7b", request_num: int = 0, log_frequency: int = 50, port: int = 11434, sleep_after: float = 0.1) -> Literal["SUPPORTS", "REFUTES", "NOT ENOUGH INFO"]:
+    """
+    Check if the claim is supported, refuted, or has not enough info based on retrieved documents.
+    
+    Args:
+        claim: The claim to verify
+        retrieved_documents: List of retrieved documents (strings or dicts with text)
+        model: Ollama model name to use
+    
+    Returns:
+        One of: "SUPPORTS", "REFUTES", "NOT ENOUGH INFO"
+    """
+    # Extract text from documents if they're dicts
+    doc_texts = []
+    for doc in retrieved_documents:
+        if isinstance(doc, dict):
+            # Try common keys for document text
+            text = doc.get('text', doc.get('content', doc.get('body', str(doc))))
+        else:
+            text = str(doc)
+        doc_texts.append(text)
+    
+    # Determine if we should use chat format or prompt format
+    use_chat_format = False
+    messages = None
+    prompt = None
+    
+    # Use chat format for Llama models (they use chat templates)
+    if 'llama3' in model.lower() or 'llama' in model.lower():
+        messages = format_llama3_promt(doc_texts, claim)
+        use_chat_format = True
+    else:
+        prompt = format_general_prompt(doc_texts, claim)
+        use_chat_format = False
     
     # Call Ollama API
     try:
-        ollama_url = f"http://localhost:{port}/api/generate"
-        response = requests.post(
-            ollama_url,
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.0,  # Very low temperature for deterministic output
-                    "top_p": 0.1,
-                    "num_predict": 10  # Limit output length to just the category
-                }
-            },
-            timeout=60
-        )
+        if use_chat_format:
+            # Use /api/chat endpoint for chat format
+            ollama_url = f"http://localhost:{port}/api/chat"
+            # import pdb; pdb.set_trace()
+            response = requests.post(
+                ollama_url,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.0,  # Very low temperature for deterministic output
+                        "top_p": 0.1,
+                        "num_predict": 10  # Limit output length to just the category
+                    }
+                },
+                timeout=60
+            )
+        else:
+            # Use /api/generate endpoint for prompt format
+            ollama_url = f"http://localhost:{port}/api/generate"
+            response = requests.post(
+                ollama_url,
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.0,  # Very low temperature for deterministic output
+                        "top_p": 0.1,
+                        # "num_predict": 10  # Limit output length to just the category
+                    }
+                },
+                timeout=60
+            )
         response.raise_for_status()
         result = response.json()
-        answer = result.get("response", "").strip()
+        
+        # Handle both /api/generate and /api/chat response formats
+        if use_chat_format:
+            # Chat API returns response in message.content
+            answer = result.get("message", {}).get("content", "")
+        else:
+            # Generate API returns response directly
+            answer = result.get("response", "").strip()
         
         # Log the full Ollama response periodically (first request and every Nth request)
         should_log = (request_num == 0) or (request_num % log_frequency == 0)
@@ -112,6 +197,13 @@ Your response (ONLY respond with one word/phrase: SUPPORTS, REFUTES, or NOT ENOU
         elif re.search(r'\bNOT\s+ENOUGH\s+INFO\b', answer_upper) or re.search(r'\bNOT_ENOUGH_INFO\b', answer_upper) or re.search(r'\bNOTENOUGHINFO\b', answer_upper):
             result_value = "NOT ENOUGH INFO"
         else:
+            # # Last resort: check if any word matches
+            # words = re.findall(r'\b\w+\b', answer_upper)
+            # for word in words:
+            #     if word == "SUPPORTS":
+            #         return "SUPPORTS"
+            #     elif word == "REFUTES":
+            #         return "REFUTES"
             
             # If no match found, default to NOT ENOUGH INFO
             print(f"Warning: Could not parse response '{answer}', defaulting to empty string")
@@ -128,6 +220,7 @@ Your response (ONLY respond with one word/phrase: SUPPORTS, REFUTES, or NOT ENOU
         return ""
     except Exception as e:
         print(f"Unexpected error: {e}")
+        import pdb; pdb.set_trace()
         return ""
 
 
@@ -213,4 +306,4 @@ if __name__ == '__main__':
     print(f"Results saved to {args.output_json}")
     
 
-    
+# python pred_results.py --file dev_claim_retrieved_docs_dense_qwen3_top5.json --model llama3.1 --port 11434 --chunk-size 1000 --start 0 --end 1000 --output-csv dev_res_llama3/dev_llm_classification_results_merged_dense_qwen3_top5_temp.csv --output-json dev_res_llama3/dev_llm_classification_results_merged_dense_qwen3_top5_temp.json

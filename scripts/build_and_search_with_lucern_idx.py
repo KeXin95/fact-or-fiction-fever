@@ -15,8 +15,9 @@ WIKIS_PATH = "../wiki-pages/wiki-*.jsonl"
 JSONL_DIR = "wiki_jsonl_files"
 JSONL_FILE = "wiki_for_pyserini.jsonl"
 PYSERINI_DIR = "pyserini_wiki_index"
-TRAIN_FILE = '../train.jsonl'
-OUTPUT = 'claim_retrieved_docs_bm25.json'
+TRAIN_FILE = 'data/fever-data/dev.jsonl'#'../train.jsonl'
+OUTPUT = 'dev_claim_retrieved_docs_bm25_top5.json'
+TOP_K = 5
 
 def build_lucern_idx(documents, doc_ids):
     
@@ -53,13 +54,14 @@ def build_lucern_idx(documents, doc_ids):
     if result.stdout:
         print("Indexing output:", result.stdout[-500:])  # Last 500 chars
 
-def retrieve_docs_pyserini(claim, searcher, top_k=10):
+def retrieve_docs_pyserini(claim, searcher, top_k=TOP_K):
     """
     Retrieve top-k documents using Pyserini by correctly parsing the raw JSON
     stored in the Lucene index.
     # Result might be slightly diff but should be more reliable: https://gemini.google.com/u/1/app/1ea3903ad504b413?pageId=none
     """
-    hits = searcher.search(claim, k=top_k)
+    # Lowercase the claim to match the lowercased documents in the index
+    hits = searcher.search(claim.lower(), k=top_k)
     results = []
     
     for i, hit in enumerate(hits):
@@ -128,7 +130,7 @@ if __name__ == '__main__':
     searcher.set_bm25(k1=1.5, b=0.75) # Use the same BM25 params
     claim_docs_pyserini = []
     for i, claim in enumerate(tqdm(claims)):
-        retrieved_docs = retrieve_docs_pyserini(claim, searcher, top_k=10)
+        retrieved_docs = retrieve_docs_pyserini(claim, searcher, top_k=TOP_K)
         claim_docs_pyserini.append({
             'claim_id': i,
             'claim': claim,
@@ -142,7 +144,6 @@ if __name__ == '__main__':
     
     print(f"Results saved to {OUTPUT}")
     print(f"Sample entry:\n{json.dumps(claim_docs_pyserini[0], indent=2)}")
-
         
     # Summary
     print("\n=== Summary ===")
@@ -152,4 +153,4 @@ if __name__ == '__main__':
     print(f"Output file: {OUTPUT}")
 
 
-    
+# nohup python build_and_search_with_lucern_idx.py >> dev_logs/log_bm25_dev.log 2>&1&

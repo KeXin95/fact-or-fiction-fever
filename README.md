@@ -1,6 +1,6 @@
 # FEVER Hallucination Detection with RAG
 
-This project implements a Retrieval-Augmented Generation (RAG) approach to detect hallucinations in claims using the FEVER (Fact Extraction and VERification) dataset. The system uses Pyserini for document retrieval and Ollama (Qwen2:7b) for LLM-based fact-checking.
+This project implements a Retrieval-Augmented Generation (RAG) approach to detect hallucinations in claims using the FEVER (Fact Extraction and VERification) dataset. The system uses Pyserini and FAISS for document retrieval and Ollama (`qwen2.5:7b-instruct`, `llama3.1`) for LLM-based fact-checking.
 
 ## Overview
 
@@ -16,10 +16,10 @@ The system works in two main stages:
 
 - Python 3.7+
 - Ollama installed and configured
-- Qwen2:7b model downloaded in Ollama
+- `qwen2.5:7b-instruct`, `llama3.1` model downloaded in Ollama
 - CUDA-capable GPU (recommended for faster inference)
 
-## Installation
+## Reproducible steps
 
 1. Install Python dependencies:
 ```bash
@@ -28,128 +28,153 @@ pip install -r requirements.txt
 
 2. Install and set up Ollama:
    - Download from [ollama.ai](https://ollama.ai)
-   - Pull the Qwen2:7b model:
+   - Pull the qwen2.5:7b-instruct model:
    ```bash
-   ollama pull qwen2:7b
+   ollama pull qwen2.5:7b-instruct
+   ```
+   - Pull the llama3.1 model:
+   ```bash
+   ollama pull llama3.1
    ```
 
-3. Prepare your data:
-   - Place FEVER training data as `train.jsonl` in the parent directory
-   - Place Wikipedia pages as `wiki-pages/wiki-*.jsonl` in the parent directory
+3. Prepare dataset:
+   - Download [shared_task_dev.jsonl](https://fever.ai/dataset/fever.html) and rename as `dev.jsonl` into `data/fever-data/`
+
+4. Build index and retrieve:
+   - Created retrieved documents results with BM25: 
+      ```bash
+      cd scripts && python build_and_search_with_lucern_idx.py
+      ```
+      This should produce `dev_claim_retrieved_docs_bm25_top5.json` (set desired output name from the script)
+   - Created retrieved documents results with Dense:
+      - For `all-MiniLM-L6-v2`:
+         ```bash
+         cd scripts && python build_and_search_with_dense.py
+         ```
+         This should produce `dev_claim_retrieved_docs_dense_miniLM_top5.json`
+      - For `Qwen/Qwen3-Embedding-0.6B`:
+         ```bash
+         cd scripts && python dense_qwen.py
+         ```
+         This should produce `dev_claim_retrieved_docs_dense_qwen3_top5.json`
+
+5. To get classification result from ollama, use these 2 scripts:
+   - start 8 Ollama services concurrently on 8 different ports on server with GPUs (configurable in .sh script for the amount of GPU):
+         ```bash
+         cd scripts && start_ollama_servers.sh
+         ```
+   - Set configuration (most importantly, `RETRIEVAL_METHOD`, `MODEL` and `MODEL_PROMPT`) in `run_parallel.sh`. This will split the input file into #NUM_PROCESSES batches, pass it to `pred_results.py`, `pred_results.py` will then output to interim chunks files, and combine all interim chunk files back to one resulted classification file specified in `$MERGED_CSV`. Command to run:
+         ```bash
+         cd scripts && run_parallel.sh
+         ```
 
 ## Data
 
-All pre-processed data files are available for download from Google Drive:
+Results can be downloaded from Google Drive:
+- `results/`: https://drive.google.com/drive/folders/1JR1Mhr_-y_4oDFFtjUbRFY5jlD2oEZoj?usp=sharing
+- `results-interim-data/`: https://drive.google.com/drive/folders/1kfpB7YDnRFF_bWD2est8psMWz0xysYyu?usp=sharing
 
-**[Download all data files from Google Drive](https://drive.google.com/drive/folders/1koNF2Sr-D-ltDxUUn_EAY1pt2M0tAe3t?usp=sharing)**
+## Results
+- Analysis used in the report can be found in [`notebooks/analysis_dev_final.ipynb`](notebooks/analysis_dev_final.ipynb)
 
-The folder contains:
-- `claim_retrieved_docs_bm25.json` - Retrieved documents for each claim using BM25
-- `pyserini/` - Pre-built Pyserini index folder
-- `llm_classification_results_merged.csv` - Merged classification results (CSV format)
-- `llm_classification_results_merged.json` - Merged classification results (JSON format)
-- `results_part_0.csv`, `results_part_0.json` - Partial results from process 0
-- `results_part_1.csv`, `results_part_1.json` - Partial results from process 1
-- `results_part_2.csv`, `results_part_2.json` - Partial results from process 2
-- `results_part_3.csv`, `results_part_3.json` - Partial results from process 3
-- `results_part_4.csv`, `results_part_4.json` - Partial results from process 4
-- `results_part_5.csv`, `results_part_5.json` - Partial results from process 5
-- `results_part_6.csv`, `results_part_6.json` - Partial results from process 6
-- `results_part_7.csv`, `results_part_7.json` - Partial results from process 7
+## Project structures
 
-
-## Usage
-
-### Step 1: Build Index and Retrieve Documents
-
-Build a Lucene index from Wikipedia articles and retrieve relevant documents for each claim:
-
-```bash
-python build_and_search_with_lucern_idx.py >> log.log 2>&1 &
+```text
+fact-or-fiction-fever/
+├─ data/
+│  └─ fever-data/
+│     ├─ dev.jsonl
+│     └─ train.jsonl
+├─ dev_logs/
+│  ├─ log_bm25_dev.log
+│  ├─ log_dense_miniLM_dev.log
+│  ├─ log_dense_qwen_dev_top5.log
+│  ├─ log_par_bm25_llama3_newprompt.log
+│  ├─ log_par_bm25_top5_llama3.log
+│  ├─ log_par_bm25_top5.log
+│  ├─ log_par_miniLM_top5_llama3.log
+│  ├─ log_par_miniLM_top5.log
+│  ├─ log_par_qwen3_top5_llama3_newprompt.log
+│  ├─ log_par_qwen3_top5_llama3.log
+│  └─ log_par_qwen3_top5.log
+├─ notebooks/
+│  └─ analysis_dev_final.ipynb
+├─ results/
+│  ├─ dev_claim_retrieved_docs_bm25_top5.json
+│  ├─ dev_claim_retrieved_docs_dense_miniLM_top5.json
+│  ├─ dev_claim_retrieved_docs_dense_qwen3_top5.json
+│  ├─ dev_res_llama3_newprompt/
+│  │  ├─ dev_llm_classification_results_merged_bm25_top5.csv
+│  │  ├─ dev_llm_classification_results_merged_dense_miniLM_top5.csv
+│  │  ├─ dev_llm_classification_results_merged_dense_qwen3_top5.csv
+│  │  └─ fever_closedbook_llama3.1_8b_instruct_dev_subset.csv
+│  └─ dev_res_qwen25/
+│     ├─ dev_llm_classification_results_merged_bm25_top5.csv
+│     ├─ dev_llm_classification_results_merged_dense_miniLM_top5.csv
+│     ├─ dev_llm_classification_results_merged_dense_qwen3_top5.csv
+│     └─ fever_closedbook_qwen2.5_7b_instruct_dev_subset.csv
+├─ results-interim-data/
+│  ├─ parallel_results_bm25_top5_llama3_newprompt/
+│  │  ├─ process_0.log
+│  │  ├─ process_1.log
+│  │  ├─ process_2.log
+│  │  ├─ process_3.log
+│  │  ├─ process_4.log
+│  │  ├─ process_5.log
+│  │  ├─ process_6.log
+│  │  ├─ process_7.log
+│  │  ├─ results_part_0.csv
+│  │  ├─ results_part_0.json
+│  │  ├─ results_part_1.csv
+│  │  ├─ results_part_1.json
+│  │  ├─ results_part_2.csv
+│  │  ├─ results_part_2.json
+│  │  ├─ results_part_3.csv
+│  │  ├─ results_part_3.json
+│  │  ├─ results_part_4.csv
+│  │  ├─ results_part_4.json
+│  │  ├─ results_part_5.csv
+│  │  ├─ results_part_5.json
+│  │  ├─ results_part_6.csv
+│  │  ├─ results_part_6.json
+│  │  ├─ results_part_7.csv
+│  │  └─ results_part_7.json
+│  ├─ parallel_results_dense_miniLM_top5_llama3_newprompt/
+│  │  ├─ process_0.log
+│  │  ├─ process_1.log
+│  │  ├─ process_2.log
+│  │  ├─ process_3.log
+│  │  ├─ process_4.log
+│  │  ├─ process_5.log
+│  │  ├─ process_6.log
+│  │  ├─ process_7.log
+│  │  ├─ results_part_0.csv
+│  │  ├─ results_part_0.json
+│  │  ├─ results_part_1.csv
+│  │  ├─ results_part_1.json
+│  │  ├─ results_part_2.csv
+│  │  ├─ results_part_2.json
+│  │  ├─ results_part_3.csv
+│  │  ├─ results_part_3.json
+│  │  ├─ results_part_4.csv
+│  │  ├─ results_part_4.json
+│  │  ├─ results_part_5.csv
+│  │  ├─ results_part_5.json
+│  │  ├─ results_part_6.csv
+│  │  ├─ results_part_6.json
+│  │  ├─ results_part_7.csv
+│  │  └─ results_part_7.json
+│  └─ parallel_results_dense_qwen3_top5_llama3_newprompt/
+│     └─ ...
+├─ scripts/
+│  ├─ build_and_search_with_dense.py
+│  ├─ build_and_search_with_lucern_idx.py
+│  ├─ close_book_predict_result.py
+│  ├─ dense_qwen.py
+│  ├─ pred_results.py
+│  ├─ run_parallel.sh
+│  └─ start_ollama_servers.sh
+├─ README.md
+└─ requirements.txt
 ```
-
-This will:
-- Load Wikipedia articles from `../wiki-pages/wiki-*.jsonl`
-- Build a Pyserini Lucene index
-- Retrieve top-k relevant documents for each claim using BM25
-- Save results to `claim_retrieved_docs_bm25.json`
-
-### Step 2: Start Ollama Servers (for parallel processing)
-
-Start multiple Ollama server instances on different ports:
-
-```bash
-bash start_ollama_servers.sh >> log_servers.log 2>&1&
-```
-
-This script starts 8 Ollama servers (default) on ports 11434-11441. Adjust the `NUM_SERVERS` and `CUDA_DEVICES` variables in the script to match your setup.
-
-### Step 3: Run Fact-Checking
-
-#### Single Process Mode
-
-Process claims sequentially with a single Ollama server:
-
-```bash
-python pred_results.py --file claim_retrieved_docs_bm25.json --model qwen2:7b --port 11434
-```
-
-#### Parallel Processing Mode
-
-Process claims in parallel across multiple Ollama servers:
-
-```bash
-bash run_parallel.sh >> log_par.log 2>&1&
-```
-
-This will:
-- Split the dataset across multiple processes
-- Each process connects to a different Ollama server port
-- Merge results into `llm_classification_results_merged.csv` and `llm_classification_results_merged.json`
-
-### Command-Line Options
-
-For `pred_results.py`:
-
-- `--file`: Path to input JSON file (default: `./claim_retrieved_docs_bm25.json`)
-- `--model`: Ollama model name (default: `qwen2:7b`)
-- `--port`: Ollama API port (default: `11434`)
-- `--chunk-size`: Number of claims per chunk (optional)
-- `--start`: Start index (0-based, default: 0)
-- `--end`: End index (exclusive, default: None for all)
-- `--output-csv`: Output CSV filename (default: `llm_classification_results.csv`)
-- `--output-json`: Output JSON filename (default: `llm_classification_results.json`)
-- `--log-ollama-frequency`: Log Ollama responses every N requests (default: 50)
-
-## Project Structure
-
-```
-server/
-├── build_and_search_with_lucern_idx.py  # Build index and retrieve documents
-├── pred_results.py                       # LLM-based fact-checking
-├── run_parallel.sh                       # Parallel processing script
-├── start_ollama_servers.sh               # Start multiple Ollama servers
-├── eval.ipynb                            # Evaluation notebook
-├── parallel_results/                     # Output directory for parallel processing
-└── logs/                                 # Log files
-```
-
-## Output Format
-
-The fact-checking results are saved as CSV and JSON files with the following structure:
-
-```json
-{
-  "index": 0,
-  "claim": "Example claim text",
-  "classification": "SUPPORTS"
-}
-```
-
-## Notes
-
-- The system uses BM25 with parameters (k1=1.5, b=0.75)
-- LLM temperature is set to 0.0 for deterministic outputs
-- Processing large datasets may take several hours depending on hardware
-- Monitor logs in `parallel_results/` directory during parallel processing
 

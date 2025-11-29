@@ -2,3 +2,6 @@
 .cursorindexingignore
 .specstory/*
 all-files/*
+results-interim-data/*
+data/*
+results/*
