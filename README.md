@@ -58,7 +58,7 @@ pip install -r requirements.txt
          ```
          This should produce `dev_claim_retrieved_docs_dense_qwen3_top5.json`
 
-5. To get classification result from ollama, use these 2 scripts:
+5. Generate open-book results: To get classification result from ollama, use these 2 scripts:
    - start 8 Ollama services concurrently on 8 different ports on server with GPUs (configurable in .sh script for the amount of GPU):
          ```bash
          cd scripts && start_ollama_servers.sh
@@ -67,6 +67,10 @@ pip install -r requirements.txt
          ```bash
          cd scripts && run_parallel.sh
          ```
+6. Generate closed book result:
+   - ```bash
+     cd scripts && python close_book_predict_result.py --ollama_bin='./bin/ollama' --log_dir='./ollama_servers/close_book' --dev_file_path='./data/fever-data/dev.jsonl' --output_file='../results/dev_res_llama3_newprompt/fever_closedbook_llama3.1_8b_instruct_dev_subset.csv' --models_path='./models/'
+     ```
 
 ## Data
 
