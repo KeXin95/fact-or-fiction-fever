@@ -38,7 +38,7 @@ pip install -r requirements.txt
    ```
 
 3. Prepare dataset:
-   - Download [shared_task_dev.jsonl](https://fever.ai/dataset/fever.html) and rename as `dev.jsonl` into `data/fever-data/`
+   - Download [shared_task_dev.jsonl](https://fever.ai/download/fever/shared_task_dev.jsonl) (from [FEVER Dataset](https://fever.ai/dataset/fever.html)) and rename as `dev.jsonl` into `data/fever-data/`
 
 4. Build index and retrieve:
    - Created retrieved documents results with BM25: 
