@@ -7,15 +7,15 @@ RETRIEVAL_METHOD="bm25_top5"  # e.g., "bm25_top5", "dense_miniLM_top5"
 MODEL_PROMPT="llama3_newprompt"  # e.g., "llama3_newprompt"
 MODEL='llama3.1'
 # "qwen2.5:7b-instruct"
-INPUT_FILE="dev_claim_retrieved_docs_${RETRIEVAL_METHOD}.json"
+INPUT_FILE="../results/dev_claim_retrieved_docs_${RETRIEVAL_METHOD}.json"
 TOTAL_ENTRIES=19998
 NUM_PROCESSES=8
 SCRIPT_PATH="./pred_results.py"
 BASE_PORT=11434  # Base port for Ollama (matches start_ollama_servers.sh)
 USE_DIFFERENT_PORTS=true  # Use different ports for each process (one per Ollama server)
 # Merge all CSV files
-MERGED_CSV="dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.csv"
-MERGED_JSON="dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.json"
+MERGED_CSV="../results/dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.csv"
+MERGED_JSON="../results/dev_res_${MODEL_PROMPT}/dev_llm_classification_results_merged_${RETRIEVAL_METHOD}.json"
 # =============
 
 # Calculate chunk size per process

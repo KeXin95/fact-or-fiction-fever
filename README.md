@@ -60,13 +60,13 @@ pip install -r requirements.txt
 
 5. Generate open-book results: To get classification result from ollama, use these 2 scripts:
    - start 8 Ollama services concurrently on 8 different ports on server with GPUs (configurable in .sh script for the amount of GPU):
-         ```bash
-         cd scripts && start_ollama_servers.sh
-         ```
+      ```bash
+      cd scripts && start_ollama_servers.sh
+      ```
    - Set configuration (most importantly, `RETRIEVAL_METHOD`, `MODEL` and `MODEL_PROMPT`) in `run_parallel.sh`. This will split the input file into #NUM_PROCESSES batches, pass it to `pred_results.py`, `pred_results.py` will then output to interim chunks files, and combine all interim chunk files back to one resulted classification file specified in `$MERGED_CSV`. Command to run:
-         ```bash
-         cd scripts && run_parallel.sh
-         ```
+      ```bash
+      cd scripts && run_parallel.sh >> ../dev_logs/log_par_{retriever-method}_top5.log 2>&1 &
+      ```
 6. Generate closed book result:
    - ```bash
      cd scripts && python close_book_predict_result.py --ollama_bin='./bin/ollama' --log_dir='./ollama_servers/close_book' --dev_file_path='./data/fever-data/dev.jsonl' --output_file='../results/dev_res_llama3_newprompt/fever_closedbook_llama3.1_8b_instruct_dev_subset.csv' --models_path='./models/'
